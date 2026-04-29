@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GCP Analytics Lab · Valesca Bravo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+:root {
+  --navy:#1d085e; --teal:#13d6c1; --teal-dark:#0a9a88;
+  --bg:#09071a; --bg2:#0f0c2a; --bg3:#161235;
+  --text:#e8e6f0; --muted:#8b87a8; --border:#2a2550;
+  --kw:#4ec9b0; --str:#ce9178; --cmt:#6a9955; --flag:#fb923c; --var:#c792ea;
+  --cloud-run:#34d399; --cloud-fn:#a78bfa; --gke:#60a5fa; --ce:#f87171;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 60% at 20% 0%,rgba(19,214,193,.07) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 100%,rgba(29,8,94,.4) 0%,transparent 60%);pointer-events:none;z-index:0}
+#root{position:relative;z-index:1}
+code,pre,.mono{font-family:'DM Mono',monospace}
+.tab-active{border-bottom:2px solid var(--teal);color:var(--teal)}
+.tab-inactive{border-bottom:2px solid transparent;color:var(--muted)}
+.tab-inactive:hover{color:var(--text);border-color:var(--border)}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.25rem}
+.card-glow{box-shadow:0 0 0 1px var(--border),0 4px 32px rgba(19,214,193,.06)}
+.badge{display:inline-flex;align-items:center;gap:.4rem;padding:.25rem .75rem;border-radius:999px;font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.badge-teal{background:rgba(19,214,193,.12);color:var(--teal);border:1px solid rgba(19,214,193,.25)}
+.badge-navy{background:rgba(29,8,94,.5);color:#a78bfa;border:1px solid rgba(167,139,250,.25)}
+.badge-orange{background:rgba(251,146,60,.12);color:var(--flag);border:1px solid rgba(251,146,60,.25)}
+pre.code-block{background:#0d0b1e;border:1px solid var(--border);border-radius:8px;padding:1rem;overflow-x:auto;font-size:.8rem;line-height:1.7}
+.kw{color:var(--kw)} .str{color:var(--str)} .cmt{color:var(--cmt)} .flag{color:var(--flag)} .var{color:var(--var)} .num{color:#b5cea8}
+.scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.section-title{font-size:1.1rem;font-weight:700;color:var(--teal);margin-bottom:.75rem;letter-spacing:-.01em}
+.error-box{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);border-radius:8px;padding:.85rem;margin-top:.75rem}
+.tip-box{background:rgba(19,214,193,.07);border:1px solid rgba(19,214,193,.2);border-radius:8px;padding:.85rem;margin-top:.75rem}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:var(--border);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--teal);cursor:pointer}
+.quiz-opt{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;cursor:pointer;text-align:left;width:100%;color:var(--text);font-family:'Sora',sans-serif;font-size:.85rem;transition:border-color .2s}
+.quiz-opt:hover{border-color:var(--teal)}
+.quiz-correct{border-color:#34d399;background:rgba(52,211,153,.08);color:#34d399}
+.quiz-wrong{border-color:#f87171;background:rgba(248,113,113,.08);color:#f87171}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .3s ease both}
+@keyframes dash{to{stroke-dashoffset:0}}
+.flow-arrow{stroke-dasharray:200;stroke-dashoffset:200;animation:dash 1.8s ease forwards}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useRef} = React;
+
+/* ── helpers ── */
+const cx=(...c)=>c.filter(Boolean).join(' ');
+
+/* ── syntax highlight ── */
+function Code({lang='sql',children}){
+  let html=children.trim();
+  if(lang==='sql'){
+    html=html
+      .replace(/--[^\n]*/g,m=>`<span class="cmt">${m}</span>`)
+      .replace(/\b(SELECT|FROM|WHERE|GROUP BY|ORDER BY|LIMIT|WITH|AS|ON|JOIN|LEFT|INNER|HAVING|PARTITION BY|CLUSTER BY|CREATE|TABLE|REPLACE|INSERT|UPDATE|DELETE|UNNEST|STRUCT|ARRAY|IF|THEN|ELSE|END|CASE|WHEN|AND|OR|NOT|IN|IS|NULL|TRUE|FALSE|BY|OVER|BETWEEN)\b/g,m=>`<span class="kw">${m}</span>`)
+      .replace(/'([^']*)'/g,(_,v)=>`<span class="str">'${v}'</span>`)
+      .replace(/\b(\d+(\.\d+)?)\b/g,m=>`<span class="num">${m}</span>`);
+  }else if(lang==='gcloud'){
+    html=html
+      .replace(/#[^\n]*/g,m=>`<span class="cmt">${m}</span>`)
+      .replace(/(--[\w-]+=?)/g,m=>`<span class="flag">${m}</span>`)
+      .replace(/\b(gcloud|bq|gsutil)\b/g,m=>`<span class="kw">${m}</span>`)
+      .replace(/'([^']*)'/g,(_,v)=>`<span class="str">'${v}'</span>`);
+  }
+  return <pre className="code-block"><code dangerouslySetInnerHTML={{__html:html}}/></pre>;
+}
+
+/* ── TABS config ── */
+const TABS=[
+  {id:'fund',  label:'Fundamentos GCP'},
+  {id:'bq',    label:'BigQuery'},
+  {id:'compute',label:'Cómputo'},
+  {id:'pipeline',label:'Data Pipeline'},
+  {id:'ai',    label:'AI y ML'},
+  {id:'storage',label:'Storage'},
+  {id:'cases', label:'Casos Reales'},
+  {id:'cheat', label:'Cheat Sheet'},
+  {id:'compare',label:'Comparativa Cloud'},
+  {id:'quiz',  label:'Quiz'},
+];
+
+/* ── HERO ── */
+function Hero(){
+  return(
+    <header className="relative px-4 pt-8 pb-6 text-center">
+      <div className="flex items-center justify-between max-w-5xl mx-auto mb-6">
+        <a href="https://valescabravo.github.io/" className="badge badge-navy text-xs hover:opacity-80 transition-opacity">← Portfolio</a>
+        <span className="badge badge-teal">2026</span>
+      </div>
+      <div className="max-w-3xl mx-auto">
+        <p className="mono text-xs text-teal mb-2 tracking-widest" style={{color:'var(--teal)'}}>INTERACTIVE LAB</p>
+        <h1 className="text-3xl md:text-5xl font-bold mb-3" style={{letterSpacing:'-.03em'}}>
+          Google Cloud Platform<br/>
+          <span style={{color:'var(--teal)'}}>Analytics Lab</span>
+        </h1>
+        <p className="text-sm md:text-base leading-relaxed max-w-xl mx-auto" style={{color:'var(--muted)'}}>
+          BigQuery, Data Pipelines, Vertex AI y el ecosistema de marketing de Google — desde analogías cotidianas hasta arquitecturas de producción.
+        </p>
+      </div>
+    </header>
+  );
+}
+
+/* ── NAV TABS ── */
+function TabNav({active,onSelect}){
+  const ref=useRef(null);
+  return(
+    <nav className="sticky top-0 z-20 px-2" style={{background:'rgba(9,7,26,.92)',backdropFilter:'blur(12px)',borderBottom:'1px solid var(--border)'}}>
+      <div ref={ref} className="flex gap-1 max-w-5xl mx-auto overflow-x-auto scroll-x py-1" style={{scrollbarWidth:'none'}}>
+        {TABS.map(t=>(
+          <button key={t.id}
+            onClick={()=>onSelect(t.id)}
+            className={cx('tab-'+(active===t.id?'active':'inactive'),'px-3 py-3 text-xs font-semibold whitespace-nowrap transition-all')}
+          >{t.label}</button>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+/* ── PLACEHOLDER PANELS ── */
+/* ── TAB: FUNDAMENTOS GCP ── */
+function TabFund(){
+  const [open,setOpen]=useState(null);
+  const toggle=k=>setOpen(o=>o===k?null:k);
+  const sections=[
+    {key:'hier',title:'Jerarquía de recursos',badge:'Modelo de recursos',
+     analogy:'Piensa en Google Cloud como una empresa real: la Organización es la empresa, las Carpetas son departamentos (Marketing, Ingeniería), y los Proyectos son los equipos de trabajo. Cada equipo tiene su presupuesto propio (Billing Account).',
+     detail:<>
+      <p className="text-sm leading-relaxed mb-3" style={{color:'var(--muted)'}}>La jerarquía define cómo se heredan los permisos hacia abajo: un rol asignado a nivel Organización se hereda por todas las Carpetas y Proyectos.</p>
+      <Code lang="gcloud">{`# Listar proyectos disponibles
+gcloud projects list
+
+# Crear proyecto bajo una carpeta
+gcloud projects create my-analytics-proj \\
+  --folder=123456789 \\
+  --set-as-default
+
+# Ver jerarquía de la organización
+gcloud resource-manager folders list \\
+  --organization=ORG_ID`}</Code>
+      <div className="tip-box text-xs mt-2"><span style={{color:'var(--teal)'}}>Caso real:</span> Separar proyecto <code>ga4-production</code> de <code>ga4-dev</code> evita que una query costosa en pruebas afecte el presupuesto de producción.</div>
+      <div className="error-box text-xs"><span style={{color:'#f87171'}}>Error común:</span> Poner todo en un solo proyecto mezcla costos, permisos y entornos. En producción, mínimo 3 proyectos: dev / staging / prod.</div>
+     </>
+    },
+    {key:'iam',title:'IAM: identidades y roles',badge:'Seguridad',
+     analogy:'IAM es el portero del edificio. Define quién puede entrar (identidad), a qué piso (recurso) y qué puede hacer allí (rol). Los roles predefinidos son llaves maestras — convenientes, pero peligrosas si caen en manos equivocadas.',
+     detail:<>
+      <p className="text-sm leading-relaxed mb-3" style={{color:'var(--muted)'}}>AWS equivalente: IAM Roles + Policies. Azure: RBAC. GCP usa un modelo aditivo: los permisos se acumulan, no se resta.</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+        {[['User Account','Persona real con email Google. Para acceso humano interactivo.','badge-navy'],
+          ['Service Account','Identidad para apps y servicios. Tiene clave JSON o Workload Identity.','badge-teal'],
+          ['Grupo','Colección de users. Mejor práctica: asignar roles a grupos, no a individuos.','badge-orange'],
+          ['Rol Personalizado','Combinación exacta de permisos. Obligatorio en producción.','badge-navy']
+        ].map(([t,d,b])=>(
+          <div key={t} className="card" style={{padding:'.75rem'}}>
+            <span className={cx('badge',b,'mb-2')}>{t}</span>
+            <p className="text-xs mt-1" style={{color:'var(--muted)'}}>{d}</p>
+          </div>
+        ))}
+      </div>
+      <Code lang="gcloud">{`# Asignar rol a Service Account (principio mínimo privilegio)
+gcloud projects add-iam-policy-binding my-proj \\
+  --member='serviceAccount:sa@my-proj.iam.gserviceaccount.com' \\
+  --role='roles/bigquery.dataViewer'
+
+# NUNCA en prod: roles/owner o roles/editor
+# Ver roles actuales
+gcloud projects get-iam-policy my-proj --format=json`}</Code>
+      <div className="error-box text-xs"><span style={{color:'#f87171'}}>Error común:</span> Usar <code>roles/editor</code> en producción da acceso de escritura a todos los servicios. Un script mal escrito puede borrar tablas de BigQuery o exponer datos.</div>
+     </>
+    },
+    {key:'billing',title:'Billing Accounts y presupuestos',badge:'Costos',
+     analogy:'La Billing Account es la tarjeta de crédito de tu empresa en GCP. Un proyecto sin Billing Account activo no puede usar servicios de pago — como intentar llamar sin saldo.',
+     detail:<>
+      <Code lang="gcloud">{`# Listar cuentas de facturación
+gcloud billing accounts list
+
+# Vincular proyecto a billing account
+gcloud billing projects link my-proj \\
+  --billing-account=0X0X0X-0X0X0X-0X0X0X
+
+# Crear alerta de presupuesto (mejor vía Console)
+# Budget API también disponible via REST`}</Code>
+      <div className="tip-box text-xs"><span style={{color:'var(--teal)'}}>Práctica recomendada:</span> Configurar alertas al 50%, 90% y 100% del presupuesto mensual. GCP no corta servicios automáticamente al llegar al límite — el costo sigue creciendo.</div>
+     </>
+    },
+  ];
+  return(
+    <div className="space-y-4 fade-in">
+      <div className="flex items-center gap-3 mb-6">
+        <span className="badge badge-teal">Fundamentos</span>
+        <h2 className="text-xl font-bold">Google Cloud Platform — Base conceptual</h2>
+      </div>
+      <div className="card card-glow mb-6">
+        <p className="text-sm leading-relaxed" style={{color:'var(--muted)'}}>GCP organiza todo en una jerarquía de recursos. A diferencia de AWS (donde todo gira en torno a cuentas) o Azure (subscripciones), GCP usa <strong style={{color:'var(--text)'}}>Proyectos</strong> como unidad central de facturación, permisos y servicios.</p>
+        <div className="mt-3 grid grid-cols-3 text-center gap-2 text-xs">
+          {[['GCP','Proyecto','Billing Account'],['AWS','Account','AWS Account'],['Azure','Resource Group','Subscription']].map(([c,u,b])=>(
+            <div key={c} className="card" style={{padding:'.6rem'}}>
+              <div className="font-bold mb-1" style={{color:'var(--teal)'}}>{c}</div>
+              <div style={{color:'var(--muted)'}}>{u}<br/><span className="mono text-xs">{b}</span></div>
+            </div>
+          ))}
+        </div>
+      </div>
+      {sections.map(s=>(
+        <div key={s.key} className="card card-glow">
+          <button className="w-full flex items-center justify-between gap-2" onClick={()=>toggle(s.key)}>
+            <div className="flex items-center gap-2"><span className="badge badge-teal">{s.badge}</span><span className="font-semibold text-sm">{s.title}</span></div>
+            <span style={{color:'var(--teal)'}}>{open===s.key?'▲':'▼'}</span>
+          </button>
+          <p className="text-sm mt-3 leading-relaxed" style={{color:'var(--muted)'}}>{s.analogy}</p>
+          {open===s.key&&<div className="mt-4 fade-in">{s.detail}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── TAB: BIGQUERY ── */
+function TabBQ(){
+  const [section,setSection]=useState('arch');
+  const nav=[['arch','Arquitectura'],['pricing','Precios'],['ml','BQ ML'],['marketing','GA4 + Ads'],['bi','BI Engine']];
+  return(
+    <div className="fade-in">
+      <div className="flex items-center gap-3 mb-5">
+        <span className="badge badge-teal">BigQuery</span>
+        <h2 className="text-xl font-bold">El data warehouse serverless de Google</h2>
+      </div>
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {nav.map(([k,l])=>(
+          <button key={k} onClick={()=>setSection(k)}
+            className={cx('badge',section===k?'badge-teal':'badge-navy','cursor-pointer transition-all')}>
+            {l}
+          </button>
+        ))}
+      </div>
+      {section==='arch'&&<BQArch/>}
+      {section==='pricing'&&<BQPricing/>}
+      {section==='ml'&&<BQML/>}
+      {section==='marketing'&&<BQMarketing/>}
+      {section==='bi'&&<BQBIEngine/>}
+    </div>
+  );
+}
+
+function BQArch(){
+  return(
+    <div className="space-y-4">
+      <div className="card card-glow">
+        <p className="section-title">¿Por qué BigQuery es rápido?</p>
+        <p className="text-sm leading-relaxed mb-3" style={{color:'var(--muted)'}}>Analogía: imagina un archivo de fichas. Una base de datos tradicional guarda cada ficha completa (fila). BigQuery guarda todas las fichas de "color" juntas, todas las de "precio" juntas — columnas separadas. Cuando preguntas "¿cuál es el precio promedio?", sólo lee la columna de precio, no todo el archivo.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          {[
+            ['Columnar','Lee sólo las columnas necesarias. Una query que toca 2 de 50 columnas lee 4% de los datos.','var(--teal)'],
+            ['Dremel Engine','Motor de ejecución distribuido: divide la query en miles de workers en paralelo. Sin configuración de tu parte.','var(--var)'],
+            ['Separación storage/compute','Los datos viven en Colossus (storage), el procesamiento ocurre en Borg (compute). Escalan independientemente.','var(--flag)'],
+          ].map(([t,d,c])=>(
+            <div key={t} className="card" style={{borderColor:`${c}40`,padding:'.85rem'}}>
+              <div className="font-bold mb-1" style={{color:c}}>{t}</div>
+              <p style={{color:'var(--muted)'}}>{d}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="card card-glow">
+        <p className="section-title">Particionado y Clustering</p>
+        <p className="text-sm leading-relaxed mb-2" style={{color:'var(--muted)'}}>Particionado = dividir la tabla por fecha. Clustering = ordenar filas dentro de cada partición por columnas frecuentes en WHERE. Juntos pueden reducir datos leídos en 90%+.</p>
+        <Code lang="sql">{`-- Tabla particionada por día con clustering
+CREATE TABLE analytics.events_partitioned
+PARTITION BY DATE(event_timestamp)
+CLUSTER BY user_id, event_name
+AS
+SELECT * FROM analytics.events_raw;
+
+-- Query que aprovecha partición + cluster (mínimo scan)
+SELECT
+  user_id,
+  COUNT(*) AS total_events
+FROM analytics.events_partitioned
+WHERE DATE(event_timestamp) BETWEEN '2025-01-01' AND '2025-03-31'
+  AND event_name = 'purchase'
+GROUP BY user_id
+ORDER BY total_events DESC
+LIMIT 100`}</Code>
+        <div className="tip-box text-xs">AWS equivalente: Redshift con SORTKEY/DISTKEY. Azure: Synapse con distribution hash. La diferencia: en BQ no pagas por almacenamiento de particiones — pagas por datos leídos.</div>
+      </div>
+      <div className="card card-glow">
+        <p className="section-title">Costo estimado</p>
+        <div className="scroll-x">
+          <table className="w-full text-xs" style={{borderCollapse:'separate',borderSpacing:'0 4px'}}>
+            <thead><tr>{['Modelo','Costo','Cuándo usarlo'].map(h=><th key={h} className="text-left pb-2 pr-4" style={{color:'var(--muted)'}}>{h}</th>)}</tr></thead>
+            <tbody>
+              {[['On-demand','$6.25 / TB leído','Equipos pequeños, queries exploratorias'],
+                ['Flat-rate','$2,000+/mes por 100 slots','Workloads predecibles, +40TB/mes'],
+                ['Free tier','1 TB/mes gratis','Ideal para aprender y proyectos pequeños'],
+                ['Storage','$0.02/GB activo, $0.01/GB long-term','Tablas no modificadas en 90 días → long-term automático'],
+              ].map(([m,c,u])=>(
+                <tr key={m} className="card" style={{display:'table-row'}}>
+                  <td className="py-2 pr-4 font-semibold" style={{color:'var(--teal)'}}>{m}</td>
+                  <td className="py-2 pr-4 mono">{c}</td>
+                  <td className="py-2" style={{color:'var(--muted)'}}>{u}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="error-box text-xs"><span style={{color:'#f87171'}}>Error de costo común:</span> <code>SELECT *</code> en tablas de 500GB = $3.12 por query. Siempre especifica columnas. El particionado puede reducir esto a centavos.</div>
+      </div>
+    </div>
+  );
+}
+
+function BQPricing(){
+  return(
+    <div className="card card-glow space-y-3">
+      <p className="section-title">On-demand vs Flat-rate — cuándo cambia el modelo</p>
+      <p className="text-sm leading-relaxed" style={{color:'var(--muted)'}}>El punto de inflexión suele ser 40 TB procesados por mes. Por debajo: on-demand. Por encima: flat-rate. Pero hay más variables.</p>
+      <Code lang="sql">{`-- Ver bytes procesados por query (antes de ejecutar)
+-- En la UI de BQ aparece en la esquina superior derecha
+
+-- Estimar costo de una query sin ejecutarla
+-- Usa el flag --dry_run en CLI:
+-- bq query --dry_run --use_legacy_sql=false 'SELECT ...'
+
+-- Ver historial de uso (útil para decidir flat-rate)
+SELECT
+  user_email,
+  SUM(total_bytes_processed) / POW(10,12) AS tb_processed,
+  COUNT(*) AS query_count,
+  DATE(creation_time) AS query_date
+FROM \`region-us\`.INFORMATION_SCHEMA.JOBS
+WHERE DATE(creation_time) >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+GROUP BY 1, 4
+ORDER BY 2 DESC`}</Code>
+      <div className="tip-box text-xs"><span style={{color:'var(--teal)'}}>Workload Management:</span> Con flat-rate puedes asignar slots por proyecto o por usuario — evita que un analista junior bloquee las queries de producción.</div>
+    </div>
+  );
+}
+
+function BQML(){
+  return(
+    <div className="space-y-4">
+      <div className="card card-glow">
+        <p className="section-title">BigQuery ML — ML sin mover datos</p>
+        <p className="text-sm leading-relaxed mb-3" style={{color:'var(--muted)'}}>En lugar de exportar datos a Python para entrenar un modelo, BigQuery ML te deja entrenar con SQL. El modelo vive en BigQuery junto a los datos — sin pipelines de transferencia, sin infra adicional.</p>
+        <Code lang="sql">{`-- Modelo de regresión logística para predecir compra
+CREATE OR REPLACE MODEL marketing.purchase_propensity
+OPTIONS(
+  model_type = 'logistic_reg',
+  input_label_cols = ['will_purchase'],
+  auto_class_weights = TRUE
+) AS
+SELECT
+  user_id,
+  session_count,
+  avg_session_duration,
+  pages_per_session,
+  channel_grouping,
+  device_category,
+  will_purchase  -- label: 0 o 1
+FROM marketing.user_features
+WHERE date_partition >= '2024-01-01';
+
+-- Evaluar el modelo
+SELECT * FROM ML.EVALUATE(MODEL marketing.purchase_propensity);
+
+-- Predecir sobre nuevos usuarios
+SELECT user_id, predicted_will_purchase, predicted_will_purchase_probs
+FROM ML.PREDICT(MODEL marketing.purchase_propensity,
+  (SELECT * FROM marketing.user_features WHERE date_partition = CURRENT_DATE())
+);`}</Code>
+        <div className="tip-box text-xs"><span style={{color:'var(--teal)'}}>Modelos soportados:</span> Regresión lineal/logística, K-means, Matrix Factorization, XGBoost, DNN, importar modelos TensorFlow/PyTorch, y desde 2024: integración directa con Vertex AI.</div>
+      </div>
+    </div>
+  );
+}
+
+function BQMarketing(){
+  return(
+    <div className="space-y-4">
+      <div className="card card-glow">
+        <p className="section-title">Pipeline GA4 → BigQuery (el caso de uso más común en marketing analytics)</p>
+        <p className="text-sm leading-relaxed mb-3" style={{color:'var(--muted)'}}>GA4 exporta eventos a BigQuery diariamente (o en streaming con GA4 360). Cada día genera una tabla <code>events_YYYYMMDD</code>. Aquí viven todos los eventos de usuarios: page_view, purchase, scroll, custom events.</p>
+        <Code lang="sql">{`-- Tablas que genera GA4 en BigQuery
+-- analytics_XXXXXXXXX.events_20250115  (por día)
+-- analytics_XXXXXXXXX.events_intraday_20250115 (streaming)
+
+-- Query: ingresos por canal + ROAS de Google Ads
+SELECT
+  traffic_source.medium AS medium,
+  traffic_source.source AS source,
+  COUNT(DISTINCT user_pseudo_id) AS users,
+  SUM((SELECT value.int_value FROM UNNEST(event_params)
+       WHERE key = 'value')) AS revenue,
+  SUM((SELECT value.int_value FROM UNNEST(event_params)
+       WHERE key = 'value')) /
+  NULLIF(MAX(ads_cost), 0) AS roas  -- requiere Data Transfer
+FROM \`project.analytics_123.events_*\`  -- wildcard para todos los días
+WHERE _TABLE_SUFFIX BETWEEN '20250101' AND '20250131'
+  AND event_name = 'purchase'
+GROUP BY 1, 2
+ORDER BY revenue DESC`}</Code>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="card" style={{padding:'.75rem'}}>
+            <p className="text-xs font-bold mb-1" style={{color:'var(--teal)'}}>Tablas GA4 en BQ</p>
+            <ul className="text-xs space-y-1" style={{color:'var(--muted)'}}>
+              <li><code>events_YYYYMMDD</code> — eventos del día</li>
+              <li><code>events_intraday_*</code> — streaming (360)</li>
+              <li><code>pseudonymous_users_*</code> — atributos de usuario</li>
+            </ul>
+          </div>
+          <div className="card" style={{padding:'.75rem'}}>
+            <p className="text-xs font-bold mb-1" style={{color:'var(--flag)'}}>Google Ads Data Transfer</p>
+            <ul className="text-xs space-y-1" style={{color:'var(--muted)'}}>
+              <li><code>p_Campaign_*</code> — métricas de campaña</li>
+              <li><code>p_AdGroup_*</code> — ad groups</li>
+              <li><code>p_ClickStats_*</code> — clicks y costos</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BQBIEngine(){
+  return(
+    <div className="card card-glow space-y-3">
+      <p className="section-title">BI Engine — caching en memoria para dashboards</p>
+      <p className="text-sm leading-relaxed" style={{color:'var(--muted)'}}>BI Engine reserva capacidad de RAM en BigQuery para acelerar queries repetitivas de Looker Studio. Reduce latencia de segundos a milisegundos en dashboards. Se activa por región y proyecto.</p>
+      <div className="grid grid-cols-2 gap-3 text-xs">
+        {[['Sin BI Engine','Cada refresh del dashboard ejecuta una query completa. 2-8 seg de latencia.','#f87171'],
+          ['Con BI Engine','Primera query llena caché. Siguientes en <100ms. Ideal para dashboards ejecutivos.','var(--teal)']
+        ].map(([t,d,c])=>(
+          <div key={t} className="card" style={{borderColor:`${c}40`,padding:'.75rem'}}>
+            <div className="font-bold mb-1" style={{color:c}}>{t}</div>
+            <p style={{color:'var(--muted)'}}>{d}</p>
+          </div>
+        ))}
+      </div>
+      <Code lang="gcloud">{`# Activar BI Engine (1 GB = ~$0.05/hora)
+gcloud alpha bireservation reservations create \\
+  --project=my-proj \\
+  --location=us-central1 \\
+  --size=1073741824  # 1 GB en bytes
+
+# Verificar reserva activa
+gcloud alpha bireservation reservations list \\
+  --project=my-proj --location=us-central1`}</Code>
+      <div className="tip-box text-xs"><span style={{color:'var(--teal)'}}>Costo:</span> $0.04–$0.05/GB/hora. Para un dashboard ejecutivo con 2 GB de caché: ~$72/mes. Compara con el costo de queries repetitivas: si el dashboard tiene 10 usuarios y 500 refreshes/día, BI Engine se paga solo.</div>
+    </div>
+  );
+}
+/* ── TAB: CÓMPUTO ── */
+function TabCompute(){
+  const [step,setStep]=useState('start');
+  const [path,setPath]=useState([]);
+  const tree={
+    start:{q:'¿Tu carga de trabajo procesa eventos en tiempo real / streaming?',yes:'streaming',no:'stateful'},
+    streaming:{q:'¿Necesitas transformaciones complejas con Apache Beam?',yes:'dataflow',no:'pubsub_only'},
+    pubsub_only:{result:'Cloud Run + Pub/Sub',color:'var(--cloud-run)',desc:'Pub/Sub recibe eventos, Cloud Run los procesa. Serverless, escala a cero, pago por uso.',usecase:'Webhooks de e-commerce, alertas GA4 en tiempo real.'},
+    dataflow:{result:'Dataflow (Apache Beam)',color:'var(--flag)',desc:'Pipeline streaming/batch unificado. Maneja ventanas de tiempo, late data, exactamente-una-vez.',usecase:'ETL de GA4 → BigQuery con transformaciones complejas.'},
+    stateful:{q:'¿Tu servicio necesita mantener estado o sesiones largas?',yes:'gke_q',no:'scale_zero'},
+    gke_q:{q:'¿Tienes un equipo de infra dedicado y necesitas control total del cluster?',yes:'gke',no:'cloudrun_adv'},
+    cloudrun_adv:{result:'Cloud Run (avanzado)',color:'var(--cloud-run)',desc:'Soporta sesiones con Cloud SQL o Redis. Sin gestión de infra. Tráfico graduado para deployments.',usecase:'API de ML con caché, backend de dashboards Looker.'},
+    gke:{result:'Google Kubernetes Engine (GKE)',color:'var(--ce)',desc:'Kubernetes gestionado. Control total: auto-scaling, multi-región, service mesh. Mayor overhead operativo.',usecase:'Plataformas de ML a escala, microservicios complejos con decenas de servicios.'},
+    scale_zero:{q:'¿La función se ejecuta en respuesta a eventos y tarda menos de 60 min?',yes:'cloudfn',no:'cloudrun_std'},
+    cloudfn:{result:'Cloud Functions (2ª gen)',color:'var(--cloud-fn)',desc:'FaaS puro. Despliega una función, GCP gestiona todo. Cold start ~200ms. Timeout máx 60 min.',usecase:'Procesar uploads a Cloud Storage, trigger de BigQuery scheduled queries.'},
+    cloudrun_std:{result:'Cloud Run',color:'var(--cloud-run)',desc:'Container serverless. Escala a cero, HTTP/gRPC, cualquier lenguaje. El servicio más versátil de GCP.',usecase:'APIs de Python/Node, modelos Vertex AI servidos como endpoint REST.'},
+  };
+  const node=tree[step];
+  const reset=()=>{setStep('start');setPath([])};
+  const go=k=>{setPath(p=>[...p,{from:step,choice:k}]);setStep(k)};
+  return(
+    <div className="fade-in space-y-4">
+      <div className="flex items-center gap-3 mb-2">
+        <span className="badge badge-teal">Cómputo</span>
+        <h2 className="text-xl font-bold">¿Qué servicio de cómputo usar en GCP?</h2>
+      </div>
+      <div className="card card-glow">
+        {!node.result?(
+          <>
+            <p className="text-sm font-semibold mb-4 leading-relaxed" style={{color:'var(--text)'}}>{node.q}</p>
+            <div className="flex gap-3 flex-wrap">
+              <button onClick={()=>go(node.yes)} className="badge badge-teal cursor-pointer text-sm px-4 py-2 hover:opacity-90 transition-opacity">Sí →</button>
+              <button onClick={()=>go(node.no)} className="badge badge-navy cursor-pointer text-sm px-4 py-2 hover:opacity-90 transition-opacity">No →</button>
+            </div>
+          </>
+        ):(
+          <div className="fade-in">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-3 h-3 rounded-full" style={{background:node.color}}/>
+              <span className="text-lg font-bold" style={{color:node.color}}>{node.result}</span>
+            </div>
+            <p className="text-sm leading-relaxed mb-2" style={{color:'var(--text)'}}>{node.desc}</p>
+            <p className="text-xs mb-4" style={{color:'var(--muted)'}}><strong>Caso de uso:</strong> {node.usecase}</p>
+            <button onClick={reset} className="badge badge-navy cursor-pointer">↩ Empezar de nuevo</button>
+          </div>
+        )}
+        {path.length>0&&(
+          <div className="mt-4 pt-4" style={{borderTop:'1px solid var(--border)'}}>
+            <p className="text-xs mb-2" style={{color:'var(--muted)'}}>Camino:</p>
+            <div className="flex flex-wrap gap-2">
+              {path.map((p,i)=><span key={i} className="badge badge-navy text-xs">{p.choice==='yes'?'Sí':'No'}</span>)}
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {[
+          {name:'Cloud Run',color:'var(--cloud-run)',desc:'Container serverless HTTP/gRPC. Escala a 0. Mejor precio/rendimiento para APIs.',aws:'Fargate / App Runner',azure:'Container Apps',cost:'$0 en 0 solicitudes, $0.00002400/req'},
+          {name:'Cloud Functions',color:'var(--cloud-fn)',desc:'FaaS para funciones cortas disparadas por eventos. Sin container, despliegue directo de código.',aws:'Lambda',azure:'Azure Functions',cost:'2M req/mes gratis, luego $0.40/M'},
+          {name:'GKE',color:'var(--ce)',desc:'Kubernetes gestionado. Autopilot mode elimina gestión de nodos. Para workloads complejos.',aws:'EKS',azure:'AKS',cost:'Cluster gratis en Autopilot, pago por pod'},
+          {name:'Compute Engine',color:'#94a3b8',desc:'VMs IaaS. Control total. Cuando nada más aplica o migraciones lift-and-shift.',aws:'EC2',azure:'Virtual Machines',cost:'Desde $0.01/hr (e2-micro), 1 f1-micro gratis/mes'},
+        ].map(s=>(
+          <div key={s.name} className="card card-glow" style={{borderColor:`${s.color}30`}}>
+            <div className="flex items-center gap-2 mb-2"><div className="w-2 h-2 rounded-full" style={{background:s.color}}/><span className="font-semibold text-sm" style={{color:s.color}}>{s.name}</span></div>
+            <p className="text-xs mb-2 leading-relaxed" style={{color:'var(--muted)'}}>{s.desc}</p>
+            <div className="flex gap-2 flex-wrap text-xs" style={{color:'var(--muted)'}}>
+              <span>AWS: <code>{s.aws}</code></span><span>·</span><span>Azure: <code>{s.azure}</code></span>
+            </div>
+            <p className="text-xs mt-1 mono" style={{color:'var(--teal)'}}>{s.cost}</p>
+          </div>
+        ))}
+      </div>
+      <div className="card card-glow">
+        <p className="section-title">Artifact Registry + Cloud Build</p>
+        <p className="text-sm leading-relaxed mb-3" style={{color:'var(--muted)'}}>Artifact Registry almacena imágenes Docker, paquetes Python/npm, artefactos Maven. Cloud Build es el CI/CD serverless que construye, testea y despliega sin gestionar servidores Jenkins.</p>
+        <Code lang="gcloud">{`# Build y push automático a Artifact Registry
+gcloud builds submit --tag \\
+  us-central1-docker.pkg.dev/my-proj/ml-repo/model-api:v1.2
+
+# Cloud Build trigger desde GitHub (cloudbuild.yaml)
+gcloud builds triggers create github \\
+  --repo-name=my-ml-repo \\
+  --repo-owner=valescabravo \\
+  --branch-pattern='^main$' \\
+  --build-config=cloudbuild.yaml`}</Code>
+      </div>
+    </div>
+  );
+}
+
+/* ── TAB: DATA PIPELINE ── */
+function TabPipeline(){
+  const [mode,setMode]=useState('batch');
+  return(
+    <div className="fade-in space-y-4">
+      <div className="flex items-center gap-3 mb-2">
+        <span className="badge badge-teal">Data Pipeline</span>
+        <h2 className="text-xl font-bold">Orquestación y procesamiento de datos</h2>
+      </div>
+      <div className="flex gap-2 mb-4">
+        <button onClick={()=>setMode('batch')} className={cx('badge cursor-pointer',mode==='batch'?'badge-teal':'badge-navy')}>Batch</button>
+        <button onClick={()=>setMode('streaming')} className={cx('badge cursor-pointer',mode==='streaming'?'badge-teal':'badge-navy')}>Streaming</button>
+      </div>
+      <div className="card card-glow">
+        <p className="section-title mb-3">Arquitectura GCP — {mode==='batch'?'Procesamiento Batch':'Streaming en tiempo real'}</p>
+        <PipelineSVG mode={mode}/>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {[
+          {name:'Pub/Sub',badge:'Mensajería',color:'var(--teal)',desc:'Cola de mensajes serverless. Desacopla productores de consumidores. Garantía at-least-once. AWS: SQS/SNS. Azure: Service Bus.',code:`# Publicar mensaje\ngcloud pubsub topics publish my-topic \\\n  --message='{"event":"purchase","user_id":"u123"}'\n\n# Suscripción pull\ngcloud pubsub subscriptions pull my-sub --auto-ack`,cost:'Primeros 10 GB/mes gratis'},
+          {name:'Dataflow',badge:'Apache Beam',color:'var(--var)',desc:'Procesamiento batch y streaming unificado. Apache Beam como SDK. Auto-scaling de workers. No gestionas clusters.',code:`# Ejecutar pipeline Beam en Dataflow\npython pipeline.py \\\n  --runner=DataflowRunner \\\n  --project=my-proj \\\n  --region=us-central1 \\\n  --temp_location=gs://my-bucket/temp`,cost:'$0.056/vCPU-hr, $0.003/GB-hr'},
+          {name:'Cloud Composer',badge:'Apache Airflow',color:'var(--flag)',desc:'Airflow gestionado. Orquesta pipelines complejos con DAGs Python. AWS: MWAA. No es serverless — pagas el entorno aunque esté idle.',code:`# Crear entorno Composer (tarda ~20 min)\ngcloud composer environments create my-env \\\n  --location=us-central1 \\\n  --image-version=composer-2.x.x-airflow-2.x.x`,cost:'Desde $0.40/hr el entorno mínimo'},
+          {name:'Dataproc',badge:'Apache Spark',color:'#60a5fa',desc:'Spark y Hadoop gestionados. Clusters efímeros: crea el cluster para el job, elimínalo después. AWS: EMR. Más económico que Composer para Spark puro.',code:`# Cluster efímero para Spark job\ngcloud dataproc clusters create spark-job \\\n  --region=us-central1 \\\n  --single-node\n\n# Submit job Spark\ngcloud dataproc jobs submit spark \\\n  --cluster=spark-job \\\n  --region=us-central1 \\\n  --jar=gs://my-bucket/job.jar`,cost:'$0.048/vCPU-hr + instancia GCE subyacente'},
+        ].map(s=>(
+          <div key={s.name} className="card card-glow" style={{borderColor:`${s.color}30`}}>
+            <div className="flex items-center gap-2 mb-1"><span className={cx('badge',s.name==='Dataflow'?'badge-navy':s.name==='Cloud Composer'?'badge-orange':s.name==='Dataproc'?'badge-navy':'badge-teal')}>{s.badge}</span><span className="font-bold" style={{color:s.color}}>{s.name}</span></div>
+            <p className="text-xs leading-relaxed mb-2" style={{color:'var(--muted)'}}>{s.desc}</p>
+            <Code lang="gcloud">{s.code}</Code>
+            <p className="text-xs mt-2 mono" style={{color:'var(--teal)'}}>{s.cost}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PipelineSVG({mode}){
+  const batch=[
+    {id:'cs',x:30,y:80,w:120,h:40,label:'Cloud Storage',color:'#4ec9b0'},
+    {id:'dp',x:200,y:80,w:120,h:40,label:'Dataproc / Dataflow',color:'#c792ea'},
+    {id:'bq',x:370,y:80,w:120,h:40,label:'BigQuery',color:'#fb923c'},
+    {id:'ls',x:540,y:80,w:120,h:40,label:'Looker Studio',color:'#60a5fa'},
+  ];
+  const stream=[
+    {id:'ps',x:20,y:80,w:110,h:40,label:'Pub/Sub',color:'#4ec9b0'},
+    {id:'df',x:175,y:80,w:110,h:40,label:'Dataflow',color:'#c792ea'},
+    {id:'bq',x:330,y:80,w:110,h:40,label:'BigQuery',color:'#fb923c'},
+    {id:'rt',x:485,y:80,w:110,h:40,label:'Real-time Dashboard',color:'#60a5fa'},
+  ];
+  const nodes=mode==='batch'?batch:stream;
+  const arrows=nodes.slice(0,-1).map((n,i)=>({x1:n.x+n.w,y1:n.y+20,x2:nodes[i+1].x,y2:nodes[i+1].y+20}));
+  return(
+    <svg viewBox="0 0 700 160" className="w-full" style={{height:160}}>
+      {arrows.map((a,i)=>(
+        <g key={i}>
+          <line x1={a.x1} y1={a.y1} x2={a.x2} y2={a.y2} stroke="var(--border)" strokeWidth="2" strokeDasharray="4 3"/>
+          <polygon points={`${a.x2},${a.y2-5} ${a.x2+10},${a.y2} ${a.x2},${a.y2+5}`} fill="var(--teal)" opacity=".6"/>
+        </g>
+      ))}
+      {nodes.map(n=>(
+        <g key={n.id}>
+          <rect x={n.x} y={n.y} width={n.w} height={n.h} rx="6" fill={n.color+'18'} stroke={n.color} strokeWidth="1.5"/>
+          <text x={n.x+n.w/2} y={n.y+n.h/2+1} textAnchor="middle" dominantBaseline="middle" fill={n.color} fontSize="10" fontFamily="DM Mono">{n.label}</text>
+        </g>
+      ))}
+      <text x="350" y="148" textAnchor="middle" fill="var(--muted)" fontSize="9" fontFamily="Sora">{mode==='batch'?'Batch: GCS → Spark/Beam → BQ → Dashboard':'Streaming: eventos → cola → procesamiento → analytics en tiempo real'}</text>
+    </svg>
+  );
+}
+/* ── TAB: AI y ML ── */
+function TabAI(){
+  return(
+    <div className="fade-in space-y-4">
+      <div className="flex items-center gap-3 mb-2">
+        <span className="badge badge-teal">AI y ML</span>
+        <h2 className="text-xl font-bold">Vertex AI y el ecosistema de ML en GCP</h2>
+      </div>
+      <div className="card card-glow">
+        <p className="section-title">Vertex AI — plataforma unificada</p>
+        <p className="text-sm leading-relaxed mb-3" style={{color:'var(--muted)'}}>Analogía: Vertex AI es el aeropuerto del ML. Puedes tomar un vuelo directo (AutoML, sin código), un vuelo con escala (training personalizado con Python), o alquilar el avión entero (MLOps con pipelines, feature store, model registry). AWS equivalente: SageMaker. Azure: Azure ML.</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {[
+            ['AutoML','Sube datos etiquetados, GCP entrena. Para imágenes, texto, tabular, vídeo. Sin código ML.','badge-teal'],
+            ['Custom Training','Python + TF/PyTorch/Sklearn en VMs gestionadas. Control total de hiperparámetros.','badge-navy'],
+            ['Model Registry','Versiona, despliega y monitoriza modelos. Rollback en un comando.','badge-orange'],
+          ].map(([t,d,b])=>(
+            <div key={t} className="card" style={{padding:'.75rem'}}>
+              <span className={cx('badge',b,'mb-2')}>{t}</span>
+              <p className="text-xs mt-1 leading-relaxed" style={{color:'var(--muted)'}}>{d}</p>
+            </div>
+          ))}
+        </div>
+        <Code lang="gcloud">{`# Desplegar modelo en Vertex AI Endpoint
+gcloud ai endpoints deploy-model ENDPOINT_ID \\
+  --region=us-central1 \\
+  --model=MODEL_ID \\
+  --display-name=purchase-propensity-v2 \\
+  --machine-type=n1-standard-4 \\
+  --min-replica-count=1 \\
+  --max-replica-count=5  # auto-scaling
+
+# Predicción online (REST)
+curl -X POST \\
+  -H 'Authorization: Bearer '$(gcloud auth print-access-token) \\
+  'https://us-central1-aiplatform.googleapis.com/v1/projects/my-proj/locations/us-central1/endpoints/ENDPOINT_ID:predict' \\
+  -d '{"instances": [{"session_count": 5, "pages_per_session": 8.2}]}'`}</Code>
+        <div className="error-box text-xs"><span style={{color:'#f87171'}}>Costo oculto:</span> Un endpoint desplegado cobra por hora aunque no reciba tráfico. Para predicciones batch, usa Batch Prediction en lugar de endpoints persistentes — puede costar 10x menos.</div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {[
+          {name:'Vision API',desc:'Detecta objetos, textos, logos, caras en imágenes. Sin entrenamiento.',usecase:'Moderar imágenes de UGC en e-commerce. Extraer texto de facturas.',cost:'$1.50/1000 imágenes (primeras 1000/mes gratis)'},
+          {name:'Natural Language API',desc:'Análisis de sentimiento, entidades, clasificación de texto.',usecase:'Análisis de reviews de clientes, categorización de tickets de soporte.',cost:'$1.00/1000 registros hasta 1M caracteres'},
+          {name:'Translation API',desc:'Traducción neuronal a 100+ idiomas. Detección automática de idioma.',usecase:'Localización de campañas de marketing, soporte multilingüe.',cost:'$20/M caracteres (primeros 500K/mes gratis)'},
+          {name:'Gemini API (vía GCP)',desc:'Acceso a modelos Gemini con facturación integrada en GCP y controles de IAM.',usecase:'Generación de copies de campaña, análisis de datos con lenguaje natural.',cost:'Gemini 1.5 Flash: $0.075/M tokens entrada'},
+        ].map(s=>(
+          <div key={s.name} className="card card-glow" style={{padding:'.85rem'}}>
+            <p className="font-bold mb-1" style={{color:'var(--teal)'}}>{s.name}</p>
+            <p className="text-xs mb-1 leading-relaxed" style={{color:'var(--muted)'}}>{s.desc}</p>
+            <p className="text-xs mb-1" style={{color:'var(--text)'}}><strong>Caso:</strong> {s.usecase}</p>
+            <p className="text-xs mono" style={{color:'var(--flag)'}}>{s.cost}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── TAB: STORAGE ── */
+function TabStorage(){
+  return(
+    <div className="fade-in space-y-4">
+      <div className="flex items-center gap-3 mb-2">
+        <span className="badge badge-teal">Storage</span>
+        <h2 className="text-xl font-bold">Almacenamiento en GCP</h2>
+      </div>
+      <div className="card card-glow">
+        <p className="section-title">Cloud Storage — clases y lifecycle</p>
+        <p className="text-sm leading-relaxed mb-3" style={{color:'var(--muted)'}}>Analogía: Cloud Storage es como tener varios tipos de archivos. Los más usados en tu escritorio (Standard), los que abres cada mes en un archivador (Nearline), los anuales en el sótano (Coldline), y los que nunca abres pero debes guardar por ley en un almacén externo (Archive).</p>
+        <div className="scroll-x">
+          <table className="w-full text-xs" style={{minWidth:520,borderCollapse:'separate',borderSpacing:'0 4px'}}>
+            <thead><tr>{['Clase','Latencia','Precio/GB/mes','Mínimo almacenamiento','Uso típico'].map(h=><th key={h} className="text-left pb-2 pr-3" style={{color:'var(--muted)'}}>{h}</th>)}</tr></thead>
+            <tbody>
+              {[
+                ['Standard','<10ms','$0.020','Ninguno','Datos activos, ML training sets, landing zone ETL'],
+                ['Nearline','<10ms','$0.010','30 días','Backups mensuales, datos de analytics históricos'],
+                ['Coldline','<10ms','$0.004','90 días','Archivos de auditoría, datos de campañas anteriores'],
+                ['Archive','Horas','$0.0012','365 días','Compliance, logs legales, datos nunca accedidos'],
+              ].map(([c,...rest])=>(
+                <tr key={c}><td className="py-2 pr-3 font-semibold" style={{color:'var(--teal)'}}>{c}</td>{rest.map((v,i)=><td key={i} className="py-2 pr-3 mono" style={{color:'var(--muted)'}}>{v}</td>)}</tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <Code lang="gcloud">{`# Crear bucket con lifecycle rule
+gsutil mb -l US-CENTRAL1 gs://my-analytics-bucket
+
+# Lifecycle: mover a Nearline después de 30 días
+gsutil lifecycle set lifecycle.json gs://my-analytics-bucket
+# lifecycle.json: {"rule":[{"action":{"type":"SetStorageClass","storageClass":"NEARLINE"},"condition":{"age":30}}]}
+
+# Transfer Service: migrar desde AWS S3
+gcloud transfer jobs create s3://aws-bucket gs://gcp-bucket \\
+  --source-creds-file=aws-creds.json`}</Code>
+      </div>
+      <div className="card card-glow">
+        <p className="section-title">¿Qué base de datos usar? — tabla de decisión</p>
+        <div className="scroll-x">
+          <table className="w-full text-xs" style={{minWidth:560,borderCollapse:'separate',borderSpacing:'0 4px'}}>
+            <thead><tr>{['Servicio','Tipo','Escala','Caso de uso','AWS equiv.'].map(h=><th key={h} className="text-left pb-2 pr-3" style={{color:'var(--muted)'}}>{h}</th>)}</tr></thead>
+            <tbody>
+              {[
+                ['Cloud SQL','SQL relacional','<10 TB','Transacciones, apps CRUD, WordPress','RDS'],
+                ['Cloud Spanner','SQL + distribución global','Sin límite','Inventario global, fintech ACID a escala','Aurora Global'],
+                ['Firestore','NoSQL documentos','Sin límite','Apps móviles, perfiles de usuario, tiempo real','DynamoDB'],
+                ['Bigtable','Wide-column NoSQL','Petabytes','Time series, IoT, clickstream de alta frecuencia','DynamoDB (HBase)'],
+                ['Memorystore','Cache (Redis/Memcached)','<300 GB','Sesiones, rate limiting, caché de API','ElastiCache'],
+              ].map(([s,...rest])=>(
+                <tr key={s}><td className="py-2 pr-3 font-semibold" style={{color:'var(--teal)'}}>{s}</td>{rest.map((v,i)=><td key={i} className="py-2 pr-3" style={{color:'var(--muted)'}}>{v}</td>)}</tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="error-box text-xs"><span style={{color:'#f87171'}}>Error frecuente:</span> Usar Cloud SQL para almacenar eventos de analytics de alto volumen. Cloud SQL tiene límite práctico de ~200 queries/segundo. Para clickstream → Bigtable o directamente BigQuery.</div>
+      </div>
+    </div>
+  );
+}
+
+/* ── TAB: CASOS REALES ── */
+function TabCases(){
+  const [active,setActive]=useState(0);
+  const cases=[
+    {title:'GA4 → BigQuery → Looker Studio',tag:'Marketing Analytics',
+     desc:'Pipeline completo para un equipo de marketing que necesita análisis de comportamiento de usuarios y atribución de canales.',
+     steps:['GA4 activa exportación diaria a BigQuery (gratuita en GA4 360, disponible también en propiedad estándar)','Tabla events_YYYYMMDD con todos los eventos de usuarios','Queries SQL en BigQuery para métricas de negocio','Looker Studio conecta directamente a BigQuery (conector nativo)','BI Engine activo para respuesta <100ms en dashboard ejecutivo'],
+     code:`-- Funnel de conversión por canal
+WITH sessions AS (
+  SELECT
+    user_pseudo_id,
+    (SELECT value.string_value FROM UNNEST(event_params)
+     WHERE key = 'session_id') AS session_id,
+    traffic_source.medium AS medium,
+    MAX(IF(event_name='page_view',1,0)) AS saw_product,
+    MAX(IF(event_name='add_to_cart',1,0)) AS added_cart,
+    MAX(IF(event_name='purchase',1,0)) AS purchased
+  FROM \`project.analytics_123.events_*\`
+  WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d', DATE_SUB(CURRENT_DATE(),INTERVAL 30 DAY))
+  GROUP BY 1,2,3
+)
+SELECT
+  medium,
+  COUNT(*) AS sessions,
+  ROUND(AVG(saw_product)*100,1) AS pct_product_view,
+  ROUND(AVG(added_cart)*100,1) AS pct_add_to_cart,
+  ROUND(AVG(purchased)*100,1) AS pct_purchase,
+  ROUND(SAFE_DIVIDE(SUM(purchased),SUM(added_cart))*100,1) AS cart_to_purchase
+FROM sessions
+GROUP BY medium
+ORDER BY sessions DESC`},
+    {title:'Análisis de Google Ads con BigQuery',tag:'Paid Media',
+     desc:'Data Transfer Service carga datos de Google Ads en BigQuery automáticamente. Permite combinar costos de campaña con conversiones de GA4.',
+     steps:['Activar BigQuery Data Transfer Service para Google Ads','Tablas p_Campaign_, p_AdGroup_, p_ClickStats_ se generan diariamente','JOIN con tablas de GA4 para calcular ROAS real (no el de la plataforma)','Detectar campañas con alto gasto y bajo revenue'],
+     code:`-- ROAS real: cruzando Ads spend con GA4 revenue
+SELECT
+  c.campaign_name,
+  SUM(cs.cost_micros) / 1e6 AS spend,
+  SUM(e.revenue) AS ga4_revenue,
+  ROUND(SAFE_DIVIDE(SUM(e.revenue), SUM(cs.cost_micros)/1e6),2) AS true_roas
+FROM \`project.ads_data.p_Campaign_123\` c
+JOIN \`project.ads_data.p_ClickStats_123\` cs
+  ON c.campaign_id = cs.campaign_id
+LEFT JOIN (
+  SELECT
+    (SELECT value.string_value FROM UNNEST(event_params) WHERE key='gclid') AS gclid,
+    SUM((SELECT value.int_value FROM UNNEST(event_params) WHERE key='value')) AS revenue
+  FROM \`project.analytics_123.events_*\`
+  WHERE event_name='purchase' AND _TABLE_SUFFIX >= '20250101'
+  GROUP BY 1
+) e ON cs.click_id = e.gclid
+GROUP BY 1
+ORDER BY spend DESC`},
+    {title:'Propensión de compra con Vertex AI',tag:'ML aplicado',
+     desc:'Predecir qué usuarios tienen mayor probabilidad de comprar en los próximos 7 días para optimizar campañas de remarketing.',
+     steps:['Feature engineering en BigQuery: historial de sesiones, productos vistos, recencia','Exportar features a Vertex AI Feature Store','Entrenar modelo XGBoost en Vertex AI Training','Predicciones batch diarias sobre usuarios activos','Exportar scores a BigQuery → segmento en Google Ads (audiencia personalizada)'],
+     code:`-- Feature engineering para propensión de compra
+SELECT
+  user_pseudo_id,
+  COUNT(DISTINCT DATE(event_timestamp)) AS active_days_30d,
+  COUNT(*) AS total_events,
+  SUM(IF(event_name='view_item',1,0)) AS product_views,
+  SUM(IF(event_name='add_to_cart',1,0)) AS cart_adds,
+  MAX(IF(event_name='purchase',1,0)) AS has_purchased,
+  DATE_DIFF(CURRENT_DATE(),
+    DATE(MAX(event_timestamp)), DAY) AS days_since_last_session,
+  -- label: ¿compró en los 7 días siguientes al corte?
+  MAX(IF(event_name='purchase'
+    AND DATE(event_timestamp) BETWEEN DATE_ADD(CURRENT_DATE(),INTERVAL 1 DAY)
+    AND DATE_ADD(CURRENT_DATE(),INTERVAL 7 DAY),1,0)) AS will_buy_7d
+FROM \`project.analytics_123.events_*\`
+WHERE _TABLE_SUFFIX >= FORMAT_DATE('%Y%m%d',DATE_SUB(CURRENT_DATE(),INTERVAL 60 DAY))
+GROUP BY user_pseudo_id`},
+  ];
+  const c=cases[active];
+  return(
+    <div className="fade-in space-y-4">
+      <div className="flex items-center gap-3 mb-2">
+        <span className="badge badge-teal">Casos Reales</span>
+        <h2 className="text-xl font-bold">Arquitecturas en producción</h2>
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        {cases.map((cs,i)=>(
+          <button key={i} onClick={()=>setActive(i)} className={cx('badge cursor-pointer',active===i?'badge-teal':'badge-navy')}>{cs.tag}</button>
+        ))}
+      </div>
+      <div className="card card-glow fade-in" key={active}>
+        <div className="flex items-center gap-2 mb-3"><span className="badge badge-teal">{c.tag}</span><h3 className="font-bold">{c.title}</h3></div>
+        <p className="text-sm leading-relaxed mb-4" style={{color:'var(--muted)'}}>{c.desc}</p>
+        <div className="mb-4">
+          {c.steps.map((s,i)=>(
+            <div key={i} className="flex gap-3 mb-2">
+              <span className="mono text-xs mt-0.5 shrink-0" style={{color:'var(--teal)'}}>{String(i+1).padStart(2,'0')}</span>
+              <p className="text-xs leading-relaxed" style={{color:'var(--text)'}}>{s}</p>
+            </div>
+          ))}
+        </div>
+        <Code lang="sql">{c.code}</Code>
+      </div>
+    </div>
+  );
+}
+
+/* ── TAB: CHEAT SHEET ── */
+function TabCheat(){
+  const [cat,setCat]=useState('gcloud');
+  const sections={
+    gcloud:{title:'gcloud CLI — 25 comandos esenciales',items:[
+      ['Autenticar','gcloud auth login'],
+      ['Proyecto activo','gcloud config set project my-proj'],
+      ['Listar proyectos','gcloud projects list'],
+      ['Listar regiones','gcloud compute regions list'],
+      ['Info de la cuenta','gcloud auth list'],
+      ['BigQuery query','bq query --use_legacy_sql=false \'SELECT 1\''],
+      ['Crear dataset BQ','bq mk --dataset my-proj:analytics'],
+      ['Cargar CSV a BQ','bq load --autodetect analytics.table gs://bucket/file.csv'],
+      ['Exportar BQ a GCS','bq extract analytics.table gs://bucket/export*.csv'],
+      ['Dry run query','bq query --dry_run --use_legacy_sql=false \'SELECT...\''],
+      ['Crear bucket GCS','gsutil mb -l us-central1 gs://my-bucket'],
+      ['Copiar a GCS','gsutil cp local-file.csv gs://my-bucket/'],
+      ['Sincronizar carpeta','gsutil -m rsync -r ./local gs://my-bucket/remote'],
+      ['Deploy Cloud Run','gcloud run deploy my-svc --image gcr.io/proj/img --region us-central1'],
+      ['Listar servicios Run','gcloud run services list'],
+      ['Ver logs Cloud Run','gcloud logging read \'resource.type=cloud_run_revision\' --limit=50'],
+      ['Crear Service Account','gcloud iam service-accounts create my-sa --display-name=\'My SA\''],
+      ['Asignar rol a SA','gcloud projects add-iam-policy-binding PROJ --member=serviceAccount:SA --role=roles/bigquery.dataViewer'],
+      ['Crear clave SA','gcloud iam service-accounts keys create key.json --iam-account=SA'],
+      ['Habilitar API','gcloud services enable bigquery.googleapis.com'],
+      ['Ver APIs activas','gcloud services list --enabled'],
+      ['Billing del proyecto','gcloud billing projects describe my-proj'],
+      ['Ver quota','gcloud compute project-info describe --project my-proj'],
+      ['Submit Dataflow job','gcloud dataflow jobs run JOB --gcs-location gs://bucket/template --region us-central1'],
+      ['Listar jobs Dataflow','gcloud dataflow jobs list --region us-central1'],
+    ]},
+    bqsql:{title:'BigQuery SQL — queries de referencia analytics',items:[
+      ['Eventos únicos por día','SELECT DATE(event_timestamp) d, COUNT(DISTINCT user_pseudo_id) users FROM `proj.dataset.events_*` WHERE _TABLE_SUFFIX >= \'20250101\' GROUP BY 1'],
+      ['Top páginas vistas','SELECT (SELECT value.string_value FROM UNNEST(event_params) WHERE key=\'page_location\') AS page, COUNT(*) AS views FROM `proj.dataset.events_*` WHERE event_name=\'page_view\' GROUP BY 1 ORDER BY 2 DESC LIMIT 20'],
+      ['Revenue por fuente','SELECT traffic_source.source src, SUM((SELECT value.int_value FROM UNNEST(event_params) WHERE key=\'value\')) rev FROM `proj.dataset.events_*` WHERE event_name=\'purchase\' GROUP BY 1 ORDER BY 2 DESC'],
+      ['Usuarios nuevos vs recurrentes','SELECT IF(user_first_touch_timestamp=MIN(event_timestamp) OVER(PARTITION BY user_pseudo_id),\'New\',\'Returning\') type, COUNT(DISTINCT user_pseudo_id) users FROM `proj.dataset.events_*` GROUP BY 1'],
+      ['Sesiones promedio antes de compra','SELECT AVG(session_count) FROM (SELECT user_pseudo_id, COUNT(DISTINCT (SELECT value.int_value FROM UNNEST(event_params) WHERE key=\'ga_session_id\')) session_count FROM `proj.dataset.events_*` WHERE event_name=\'purchase\' GROUP BY 1)'],
+    ]},
+    iam:{title:'Patrones IAM seguros en producción',items:[
+      ['Principio mínimo privilegio','Nunca roles/editor o roles/owner. Crea roles personalizados con exactamente los permisos necesarios.'],
+      ['Service Accounts por servicio','Un SA por microservicio/job. Si un SA se compromete, el blast radius es mínimo.'],
+      ['Workload Identity','En lugar de archivos JSON de SA, usa Workload Identity Federation para GKE y GitHub Actions.'],
+      ['Auditar permisos','gcloud asset search-all-iam-policies --scope=projects/my-proj para ver todos los bindings.'],
+      ['Condition-based IAM','Añade condiciones de tiempo o IP a roles sensibles: acceso sólo de lunes a viernes en horario laboral.'],
+    ]},
+  };
+  const s=sections[cat];
+  return(
+    <div className="fade-in space-y-4">
+      <div className="flex items-center gap-3 mb-2">
+        <span className="badge badge-teal">Cheat Sheet</span>
+        <h2 className="text-xl font-bold">Referencia rápida</h2>
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        {[['gcloud','gcloud CLI'],['bqsql','BigQuery SQL'],['iam','IAM Seguro']].map(([k,l])=>(
+          <button key={k} onClick={()=>setCat(k)} className={cx('badge cursor-pointer',cat===k?'badge-teal':'badge-navy')}>{l}</button>
+        ))}
+      </div>
+      <div className="card card-glow">
+        <p className="section-title">{s.title}</p>
+        <div className="space-y-2">
+          {s.items.map(([k,v],i)=>(
+            <div key={i} className="fade-in" style={{animationDelay:`${i*0.03}s`}}>
+              <div className="flex gap-2 items-start py-2" style={{borderBottom:'1px solid var(--border)'}}>
+                <span className="mono text-xs shrink-0 mt-0.5" style={{color:'var(--flag)',minWidth:180}}>{k}</span>
+                <code className="text-xs leading-relaxed" style={{color:'var(--muted)',wordBreak:'break-all'}}>{v}</code>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+/* ── BIGQUERY COST CALCULATOR (used in BQ tab and standalone) ── */
+function BQCalculator(){
+  const [gb,setGb]=useState(100);
+  const [queries,setQueries]=useState(500);
+  const [partitioned,setPartitioned]=useState(false);
+  const [biEngine,setBiEngine]=useState(false);
+  const factor=partitioned?0.15:1;
+  const tbRead=(gb*factor)/1000;
+  const odCost=tbRead*6.25;
+  const frCost=2000;
+  const biCost=biEngine?(0.05*24*30*2):0;
+  const saving=partitioned?Math.round((1-factor)*100):0;
+  const recommend=odCost<frCost?'on-demand':'flat-rate';
+  return(
+    <div className="card card-glow space-y-4">
+      <p className="section-title">Simulador de costos BigQuery</p>
+      {[
+        {label:`GB procesados por mes: ${gb} GB`,val:gb,set:setGb,min:1,max:5000,step:10},
+        {label:`Número de queries/mes: ${queries}`,val:queries,set:setQueries,min:1,max:5000,step:50},
+      ].map(({label,val,set,min,max,step})=>(
+        <div key={label}>
+          <p className="text-xs mb-1" style={{color:'var(--muted)'}}>{label}</p>
+          <input type="range" min={min} max={max} step={step} value={val} onChange={e=>set(Number(e.target.value))}/>
+        </div>
+      ))}
+      <div className="flex gap-4 flex-wrap text-xs">
+        {[['Particionado activo',partitioned,setPartitioned],['BI Engine (2 GB)',biEngine,setBiEngine]].map(([l,v,s])=>(
+          <label key={l} className="flex items-center gap-2 cursor-pointer">
+            <div onClick={()=>s(!v)} style={{width:32,height:18,borderRadius:9,background:v?'var(--teal)':'var(--border)',position:'relative',cursor:'pointer',transition:'background .2s'}}>
+              <div style={{position:'absolute',top:2,left:v?14:2,width:14,height:14,borderRadius:'50%',background:'white',transition:'left .2s'}}/>
+            </div>
+            <span style={{color:'var(--text)'}}>{l}</span>
+          </label>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+        {[
+          ['TB leídos',`${tbRead.toFixed(3)} TB`,'var(--muted)'],
+          ['On-demand',`$${odCost.toFixed(2)}/mes`,'var(--teal)'],
+          ['Flat-rate',`$${(frCost+biCost).toFixed(0)}/mes`,'var(--var)'],
+          ['Ahorro particionado',`${saving}%`,'var(--flag)'],
+        ].map(([l,v,c])=>(
+          <div key={l} className="card" style={{padding:'.75rem'}}>
+            <p className="text-xs mb-1" style={{color:'var(--muted)'}}>{l}</p>
+            <p className="font-bold mono" style={{color:c}}>{v}</p>
+          </div>
+        ))}
+      </div>
+      <div className={cx('tip-box text-xs',recommend==='flat-rate'&&'error-box')}>
+        <span style={{color:recommend==='on-demand'?'var(--teal)':'#f87171'}}>Recomendación:</span> Con este volumen, <strong>{recommend==='on-demand'?'On-demand es más económico':'Flat-rate se justifica'}</strong>. {partitioned&&`El particionado reduce los datos leídos en ${saving}%.`} {biEngine&&` BI Engine añade $${biCost.toFixed(0)}/mes pero elimina latencia en dashboards.`}
+      </div>
+    </div>
+  );
+}
+
+/* ── CLOUD COMPARISON TABLE ── */
+function CloudComparison(){
+  const rows=[
+    ['Data Warehouse','BigQuery','Redshift','Synapse Analytics'],
+    ['Costo/TB procesado','$6.25 (on-demand)','$5.00 + cluster','$5.00 + DWU'],
+    ['Serverless','Sí (total)','No (necesitas cluster)','Parcial (Serverless pool)'],
+    ['Integración BI nativa','Looker Studio gratis','QuickSight (pago)','Power BI Premium'],
+    ['Marketing nativo','GA4, Google Ads, DV360','Ninguno nativo','LinkedIn Ads (limitado)'],
+    ['ML integrado','BigQuery ML + Vertex AI','SageMaker (separado)','Azure ML (separado)'],
+    ['Latencia Europa','<50ms (multi-region EU)','Depende de región','<50ms (West Europe)'],
+    ['GDPR compliance','Sí (región EU garantizada)','Sí','Sí'],
+    ['Free tier','1 TB/mes + 10 GB storage','No','No'],
+    ['Madurez ML/AI','Alta (Vertex AI + Gemini)','Alta (SageMaker)','Alta (Azure OpenAI)'],
+  ];
+  return(
+    <div className="card card-glow mt-6">
+      <p className="section-title">GCP vs AWS vs Azure — Analytics</p>
+      <div className="scroll-x">
+        <table className="w-full text-xs" style={{minWidth:500,borderCollapse:'separate',borderSpacing:'0 3px'}}>
+          <thead>
+            <tr>{['Criterio','GCP','AWS','Azure'].map((h,i)=>(
+              <th key={h} className="text-left pb-2 pr-4" style={{color:i===0?'var(--muted)':i===1?'var(--teal)':i===2?'var(--flag)':'var(--var)'}}>{h}</th>
+            ))}</tr>
+          </thead>
+          <tbody>
+            {rows.map(([crit,...vals])=>(
+              <tr key={crit}>
+                <td className="py-1.5 pr-4 font-semibold" style={{color:'var(--text)'}}>{crit}</td>
+                {vals.map((v,i)=><td key={i} className="py-1.5 pr-4 mono" style={{color:'var(--muted)'}}>{v}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ── QUIZ ── */
+const QUIZ_Q=[
+  {q:'Un analista ejecuta SELECT * sobre una tabla de 800 GB en BigQuery on-demand. ¿Cuál es el costo aproximado?',opts:['$0.00 (free tier cubre todo)','$5.00','$4.25','Depende del número de filas, no de GB'],ans:2,exp:'On-demand cobra $6.25/TB. 800 GB = 0.8 TB × $6.25 = $5.00. Pero la respuesta "$5.00" asume sin free tier. El free tier da 1 TB/mes gratis. Si ya usó el free tier, es ~$5.00.'},
+  {q:'¿Cuál es la diferencia principal entre Cloud Run y Cloud Functions en GCP?',opts:['Cloud Run sólo soporta Python','Cloud Run ejecuta contenedores; Cloud Functions ejecuta funciones individuales','Cloud Functions escala infinitamente; Cloud Run no','Son idénticos, sólo cambia el precio'],ans:1,exp:'Cloud Run despliega contenedores Docker completos (cualquier lenguaje/runtime). Cloud Functions despliega código fuente directamente (FaaS). Cloud Run tiene más flexibilidad; Cloud Functions es más simple de configurar.'},
+  {q:'¿Qué hace el particionado por fecha en BigQuery?',opts:['Encripta los datos por período','Divide la tabla en archivos por fecha → las queries con WHERE de fecha leen sólo las particiones necesarias','Replica los datos en múltiples regiones','Comprime los datos automáticamente'],ans:1,exp:'El particionado físicamente separa los datos por fecha. Una query con WHERE DATE = "2025-01-15" sólo lee esa partición, no toda la tabla. Puede reducir costos en 80-95% en tablas de eventos con buenas cláusulas de fecha.'},
+  {q:'En la jerarquía de recursos de GCP, ¿dónde se asigna la Billing Account?',opts:['A nivel de Organización','A nivel de Carpeta','A nivel de Proyecto','A nivel de Servicio individual'],ans:2,exp:'La Billing Account se vincula a nivel de Proyecto. Cada proyecto puede tener una sola Billing Account activa. Esto permite tener múltiples proyectos (prod/dev/staging) con diferentes presupuestos o incluso diferentes cuentas de facturación.'},
+  {q:'¿Por qué GA4 exporta tablas con el esquema events_YYYYMMDD en BigQuery?',opts:['Por limitaciones técnicas de BigQuery','Para facilitar el particionado: cada día es una tabla, lo que permite consultar rangos de fechas leyendo sólo las tablas necesarias','Por compatibilidad con Universal Analytics','Porque BigQuery no soporta tablas grandes'],ans:1,exp:'El sufijo de fecha actúa como particionado manual. Usando el comodín events_* con _TABLE_SUFFIX BETWEEN, BigQuery sólo lee las tablas (días) del rango solicitado. Esto reduce dramáticamente los costos en análisis histórico.'},
+];
+function TabQuiz(){
+  const [answers,setAnswers]=useState({});
+  const [submitted,setSubmitted]=useState(false);
+  const score=Object.entries(answers).filter(([i,a])=>QUIZ_Q[i].ans===a).length;
+  return(
+    <div className="fade-in space-y-4">
+      <div className="flex items-center gap-3 mb-2">
+        <span className="badge badge-teal">Quiz</span>
+        <h2 className="text-xl font-bold">5 preguntas — GCP Analytics</h2>
+      </div>
+      {QUIZ_Q.map((q,qi)=>(
+        <div key={qi} className="card card-glow">
+          <p className="text-sm font-semibold mb-3 leading-relaxed">{qi+1}. {q.q}</p>
+          <div className="space-y-2">
+            {q.opts.map((opt,oi)=>{
+              const chosen=answers[qi]===oi;
+              const correct=q.ans===oi;
+              let cls='quiz-opt';
+              if(submitted&&chosen&&correct) cls+=' quiz-correct';
+              else if(submitted&&chosen&&!correct) cls+=' quiz-wrong';
+              else if(submitted&&correct) cls+=' quiz-correct';
+              return(
+                <button key={oi} className={cls} onClick={()=>!submitted&&setAnswers(a=>({...a,[qi]:oi}))}>
+                  <span className="mono text-xs mr-2" style={{color:'var(--teal)'}}>{String.fromCharCode(65+oi)}.</span>{opt}
+                </button>
+              );
+            })}
+          </div>
+          {submitted&&<div className="tip-box text-xs mt-3"><span style={{color:'var(--teal)'}}>Explicación:</span> {q.exp}</div>}
+        </div>
+      ))}
+      {!submitted?(
+        <button onClick={()=>setSubmitted(true)} disabled={Object.keys(answers).length<5}
+          className="w-full py-3 rounded-lg font-semibold text-sm transition-all"
+          style={{background:Object.keys(answers).length<5?'var(--border)':'var(--teal)',color:'var(--bg)',cursor:Object.keys(answers).length<5?'not-allowed':'pointer'}}>
+          {Object.keys(answers).length<5?`Responde ${5-Object.keys(answers).length} pregunta(s) más`:'Ver resultados'}
+        </button>
+      ):(
+        <div className="card card-glow text-center">
+          <p className="text-2xl font-bold mb-1" style={{color:'var(--teal)'}}>{score}/5</p>
+          <p className="text-sm" style={{color:'var(--muted)'}}>{score===5?'Perfecto — dominas GCP Analytics':score>=3?'Buen resultado. Revisa las explicaciones de las incorrectas.':'Repasa los tabs de Fundamentos y BigQuery.'}</p>
+          <button onClick={()=>{setSubmitted(false);setAnswers({})}} className="badge badge-navy cursor-pointer mt-3">Intentar de nuevo</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── ROUTER ── */
+function TabContent({active}){
+  switch(active){
+    case 'fund':    return typeof TabFund!=='undefined'?<TabFund/>:<Placeholder label="Fundamentos GCP"/>;
+    case 'bq':     return <div className="space-y-6"><TabBQ/><BQCalculator/></div>;
+    case 'compute':return typeof TabCompute!=='undefined'?<TabCompute/>:<Placeholder label="Cómputo"/>;
+    case 'pipeline':return typeof TabPipeline!=='undefined'?<TabPipeline/>:<Placeholder label="Data Pipeline"/>;
+    case 'ai':     return typeof TabAI!=='undefined'?<TabAI/>:<Placeholder label="AI y ML"/>;
+    case 'storage':return typeof TabStorage!=='undefined'?<TabStorage/>:<Placeholder label="Storage"/>;
+    case 'cases':  return typeof TabCases!=='undefined'?<TabCases/>:<Placeholder label="Casos Reales"/>;
+    case 'cheat':  return typeof TabCheat!=='undefined'?<TabCheat/>:<Placeholder label="Cheat Sheet"/>;
+    case 'compare':return <CloudComparison/>;
+    case 'quiz':   return <TabQuiz/>;
+    default: return null;
+  }
+}
+function Placeholder({label}){
+  return <div className="flex items-center justify-center h-48 text-sm" style={{color:'var(--muted)'}}>{label} — próximamente</div>;
+}
+
+/* ── FOOTER ── */
+function Footer(){
+  return(
+    <footer className="text-center py-6 mt-8 text-xs" style={{color:'var(--muted)',borderTop:'1px solid var(--border)'}}>
+      © 2026 Valesca Bravo — Interactive Lab &nbsp;·&nbsp;
+      <a href="https://valescabravo.github.io/" className="hover:underline" style={{color:'var(--teal)'}}>Portfolio</a>
+    </footer>
+  );
+}
+
+/* ── APP ── */
+function App(){
+  const [tab,setTab]=useState('fund');
+  return(
+    <div className="min-h-screen">
+      <Hero/>
+      <TabNav active={tab} onSelect={setTab}/>
+      <main className="max-w-5xl mx-auto px-4 py-8 fade-in" key={tab}>
+        <TabContent active={tab}/>
+      </main>
+      <Footer/>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
